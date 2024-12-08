@@ -240,12 +240,19 @@ class Site extends AbstractModel
             throw new SourceControlIsNotConnected($this->source_control);
         }
 
+        $events = [
+            \App\Enums\SourceControl::GITHUB => ['push'],
+            \App\Enums\SourceControl::GITLAB => ['push'],
+            \App\Enums\SourceControl::BITBUCKET => ['push'],
+            \App\Enums\SourceControl::AZURE_DEVOPS => ['git.push']
+        ];
+
         $gitHook = new GitHook([
             'site_id' => $this->id,
             'source_control_id' => $this->source_control_id,
             'secret' => Str::uuid()->toString(),
             'actions' => ['deploy'],
-            'events' => ['push'],
+            'events' => $events[$this->sourceControl->provider],
         ]);
         $gitHook->save();
         $gitHook->deployHook();

@@ -2,13 +2,15 @@
 
 namespace App\SourceControlProviders;
 
+use App\Exceptions\FailedToDeployGitHook;
+use App\Exceptions\FailedToDestroyGitHook;
 use Exception;
 use Illuminate\Support\Facades\Http;
 
 class AzureDevops extends AbstractSourceControlProvider
 {
 
-    private const API_VERSION = "4.1";
+    private const API_VERSION = "7.1";
 
     protected string $apiUrl = 'https://dev.azure.com';
 
@@ -70,14 +72,62 @@ class AzureDevops extends AbstractSourceControlProvider
         return sprintf('https://%s:%s@dev.azure.com/%s/%s/_git/%s', $key, $token, $organization, $project, $repo);
     }
 
+    /**
+     * @TODO Register webhook for every event
+     */
     public function deployHook(string $repo, array $events, string $secret): array
     {
-        // TODO: Implement deployHook() method.
+        $organization = $this->data()['organization'];
+
+        $repository = $this->getRepo($repo);
+
+        $projectId = $repository["project"]["id"];
+
+        try {
+            $response = Http::withHeaders($this->getAuthenticationHeaders())
+                ->post($this->apiUrl."/$organization/_apis/hooks/subscriptions?api-version=".static::API_VERSION, [
+                    "publisherId" => "tfs",
+                    "eventType" => $events[0],
+                    "resourceVersion" => "1.0",
+                    "consumerId" => "webHooks",
+                    "consumerActionId" => "httpRequest",
+                    "consumerInputs" => [
+                        "url" => url('/api/git-hooks?secret='.$secret)
+                    ],
+                    "publisherInputs" => [
+                        "repository" => $repository["id"],
+                        "projectId" => $projectId,
+                    ]
+                ]);
+
+        } catch (Exception $e) {
+            throw new FailedToDeployGitHook($e->getMessage());
+        }
+
+        if ($response->status() != 200) {
+            throw new FailedToDeployGitHook($response->body());
+        }
+
+        return [
+            'hook_id' => json_decode($response->body())->id,
+            'hook_response' => json_decode($response->body()),
+        ];
     }
 
     public function destroyHook(string $repo, string $hookId): void
     {
-        // TODO: Implement destroyHook() method.
+        $organization = $this->data()['organization'];
+
+        try {
+            $response = Http::withHeaders($this->getAuthenticationHeaders())
+                ->delete($this->apiUrl."/$organization/_apis/hooks/subscriptions/$hookId?api-version=".static::API_VERSION);
+        } catch (Exception $e) {
+            throw new FailedToDestroyGitHook($e->getMessage());
+        }
+
+        if ($response->status() != 204) {
+            throw new FailedToDestroyGitHook($response->body());
+        }
     }
 
     public function getLastCommit(string $repo, string $branch): ?array
