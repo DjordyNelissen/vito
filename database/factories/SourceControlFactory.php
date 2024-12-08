@@ -46,4 +46,13 @@ class SourceControlFactory extends Factory
             ];
         });
     }
+
+    public function azure_devops(): Factory
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'provider' => \App\Enums\SourceControl::AZURE_DEVOPS,
+            ];
+        });
+    }
 }

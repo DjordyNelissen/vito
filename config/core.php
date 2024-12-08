@@ -413,11 +413,13 @@ return [
         'github',
         'gitlab',
         'bitbucket',
+        'azure-devops'
     ],
     'source_control_providers_class' => [
         'github' => \App\SourceControlProviders\Github::class,
         'gitlab' => \App\SourceControlProviders\Gitlab::class,
         'bitbucket' => \App\SourceControlProviders\Bitbucket::class,
+        'azure-devops' => \App\SourceControlProviders\AzureDevops::class,
     ],
 
     /*

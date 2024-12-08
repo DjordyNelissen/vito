@@ -33,6 +33,13 @@ class Edit
             TextInput::make('password')
                 ->visible(fn (Get $get) => EditSourceControl::rules($sourceControl, $get())['password'] ?? false)
                 ->rules(fn (Get $get) => EditSourceControl::rules($sourceControl, $get())['password']),
+            TextInput::make('organization')
+                ->visible(fn ($get) => EditSourceControl::rules($sourceControl, $get())['organization'] ?? false)
+                ->rules(fn (Get $get) => EditSourceControl::rules($sourceControl, $get())['organization']),
+            TextInput::make('project')
+                ->label('Project')
+                ->visible(fn ($get) => EditSourceControl::rules($sourceControl, $get())['project'] ?? false)
+                ->rules(fn (Get $get) => EditSourceControl::rules($sourceControl, $get())['project']),
             Checkbox::make('global')
                 ->label('Is Global (Accessible in all projects)'),
         ];

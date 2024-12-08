@@ -111,7 +111,7 @@ class Index extends \App\Web\Pages\Servers\Page
                         ->live()
                         ->visible(fn (Get $get) => isset(CreateSite::rules($this->server, $get())['source_control'])),
                     TextInput::make('repository')
-                        ->placeholder('organization/repository')
+                        ->placeholder(fn (Get $get) => $get('source_control') && SourceControl::find($get('source_control'))?->provider === \App\Enums\SourceControl::AZURE_DEVOPS ? 'repository' : 'organization/repository')
                         ->rules(fn (Get $get) => CreateSite::rules($this->server, $get())['repository'])
                         ->visible(fn (Get $get) => isset(CreateSite::rules($this->server, $get())['repository'])),
                     TextInput::make('branch')

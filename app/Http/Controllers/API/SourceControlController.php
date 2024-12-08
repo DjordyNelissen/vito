@@ -42,7 +42,7 @@ class SourceControlController extends Controller
 
     #[Post('/', name: 'api.projects.source-controls.create', middleware: 'ability:write')]
     #[Endpoint(title: 'create')]
-    #[BodyParam(name: 'provider', description: 'The provider', required: true, enum: [\App\Enums\SourceControl::GITLAB, \App\Enums\SourceControl::GITHUB, \App\Enums\SourceControl::BITBUCKET])]
+    #[BodyParam(name: 'provider', description: 'The provider', required: true, enum: [\App\Enums\SourceControl::GITLAB, \App\Enums\SourceControl::GITHUB, \App\Enums\SourceControl::BITBUCKET, \App\Enums\SourceControl::AZURE_DEVOPS])]
     #[BodyParam(name: 'name', description: 'The name of the storage provider.', required: true)]
     #[BodyParam(name: 'token', description: 'The token if provider requires api token')]
     #[BodyParam(name: 'url', description: 'The URL if the provider is Gitlab and it is self-hosted')]

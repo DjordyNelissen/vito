@@ -32,6 +32,7 @@ class Create
                 ->visible(fn ($get) => in_array($get('provider'), [
                     SourceControl::GITHUB,
                     SourceControl::GITLAB,
+                    SourceControl::AZURE_DEVOPS
                 ]))
                 ->rules(fn (Get $get) => ConnectSourceControl::rules($get())['token']),
             TextInput::make('url')
@@ -45,6 +46,13 @@ class Create
             TextInput::make('password')
                 ->visible(fn ($get) => $get('provider') == SourceControl::BITBUCKET)
                 ->rules(fn (Get $get) => ConnectSourceControl::rules($get())['password']),
+            TextInput::make('organization')
+                ->visible(fn ($get) => $get('provider') == SourceControl::AZURE_DEVOPS)
+                ->rules(fn (Get $get) => ConnectSourceControl::rules($get())['organization']),
+            TextInput::make('project')
+                ->label('Project')
+                ->visible(fn ($get) => $get('provider') == SourceControl::AZURE_DEVOPS)
+                ->rules(fn (Get $get) => ConnectSourceControl::rules($get())['project']),
             Checkbox::make('global')
                 ->label('Is Global (Accessible in all projects)'),
         ];

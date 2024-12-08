@@ -9,4 +9,6 @@ final class SourceControl
     const GITLAB = 'gitlab';
 
     const BITBUCKET = 'bitbucket';
+
+    const AZURE_DEVOPS = 'azure-devops';
 }

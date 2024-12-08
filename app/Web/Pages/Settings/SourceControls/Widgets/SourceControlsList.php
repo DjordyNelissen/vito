@@ -68,6 +68,8 @@ class SourceControlsList extends Widget
                             'token' => $record->provider_data['token'] ?? null,
                             'username' => $record->provider_data['username'] ?? null,
                             'password' => $record->provider_data['password'] ?? null,
+                            'organization' => $record->provider_data['organization'] ?? null,
+                            'project' => $record->provider_data['project'] ?? null,
                             'global' => $record->project_id === null,
                         ];
                     })
