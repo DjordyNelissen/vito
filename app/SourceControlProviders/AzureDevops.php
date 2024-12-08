@@ -9,10 +9,9 @@ use Illuminate\Support\Facades\Http;
 
 class AzureDevops extends AbstractSourceControlProvider
 {
-
     private const API_VERSION = "7.1";
 
-    protected string $apiUrl = 'https://dev.azure.com';
+    private const API_URL = 'https://dev.azure.com';
 
     public function createRules(array $input): array
     {
@@ -45,7 +44,7 @@ class AzureDevops extends AbstractSourceControlProvider
     {
         try {
             $res = Http::withHeaders($this->getAuthenticationHeaders())
-                ->get($this->getUrl("repositories"));
+                ->get($this->getRepositoriesUrl());
         } catch (Exception) {
             return false;
         }
@@ -56,7 +55,7 @@ class AzureDevops extends AbstractSourceControlProvider
     public function getRepo(?string $repo = null): mixed
     {
         $res = Http::withHeaders($this->getAuthenticationHeaders())
-            ->get($this->getUrl("/repositories/$repo"));
+            ->get($this->getRepositoriesUrl($repo));
 
         $this->handleResponseErrors($res, $repo);
 
@@ -77,15 +76,13 @@ class AzureDevops extends AbstractSourceControlProvider
      */
     public function deployHook(string $repo, array $events, string $secret): array
     {
-        $organization = $this->data()['organization'];
-
         $repository = $this->getRepo($repo);
 
         $projectId = $repository["project"]["id"];
 
         try {
             $response = Http::withHeaders($this->getAuthenticationHeaders())
-                ->post($this->apiUrl."/$organization/_apis/hooks/subscriptions?api-version=".static::API_VERSION, [
+                ->post($this->getHooksUrl(), [
                     "publisherId" => "tfs",
                     "eventType" => $events[0],
                     "resourceVersion" => "1.0",
@@ -116,11 +113,9 @@ class AzureDevops extends AbstractSourceControlProvider
 
     public function destroyHook(string $repo, string $hookId): void
     {
-        $organization = $this->data()['organization'];
-
         try {
             $response = Http::withHeaders($this->getAuthenticationHeaders())
-                ->delete($this->apiUrl."/$organization/_apis/hooks/subscriptions/$hookId?api-version=".static::API_VERSION);
+                ->delete($this->getHooksUrl($hookId));
         } catch (Exception $e) {
             throw new FailedToDestroyGitHook($e->getMessage());
         }
@@ -133,7 +128,7 @@ class AzureDevops extends AbstractSourceControlProvider
     public function getLastCommit(string $repo, string $branch): ?array
     {
         $res = Http::withHeaders($this->getAuthenticationHeaders())
-            ->get($this->getUrl("/repositories/$repo/commits?searchCriteria.itemVersionVersion==".$branch));
+            ->get($this->getRepositoriesUrl("$repo/commits?searchCriteria.itemVersionVersion==".$branch));
 
         $this->handleResponseErrors($res, $repo);
 
@@ -161,19 +156,49 @@ class AzureDevops extends AbstractSourceControlProvider
         // TODO: Implement deployKey() method.
     }
 
-    private function getUrl(string $urlString): string
+    private function getRepositoriesUrl(?string $urlString = null): string
     {
-        $urlString = trim($urlString);
-        $urlString = trim($urlString, '/');
-
-        $urlSegments[] = $this->apiUrl;
+        $urlSegments[] = static::API_URL;
         $urlSegments[] = $this->data()['organization'];
         $urlSegments[] = $this->data()['project'];
-        $urlSegments[] = "_apis/git/$urlString?api-version=".static::API_VERSION;
+        $urlSegments[] = "_apis/git/repositories";
+        $urlSegments[] = $this->cleanUrlString($urlString);
 
+        return $this->appendApiVersion(
+            $this->generateUrlFromSegments($urlSegments)
+        );
+    }
+
+    private function getHooksUrl(?string $urlString = null): string
+    {
+        $urlSegments[] = static::API_URL;
+        $urlSegments[] = $this->data()['organization'];
+        $urlSegments[] = "_apis/hooks/subscriptions";
+        $urlSegments[] = $this->cleanUrlString($urlString);
+
+        return $this->appendApiVersion(
+            $this->generateUrlFromSegments($urlSegments)
+        );
+    }
+
+    private function cleanUrlString(?string $urlString = null): string | null
+    {
+        if ($urlString) {
+            $urlString = trim(trim($urlString, '/'));
+        }
+
+        return $urlString;
+    }
+
+    private function generateUrlFromSegments(array $urlSegments): string
+    {
         $urlSegments = array_filter($urlSegments, fn ($segment) => $segment);
 
         return implode('/', $urlSegments);
+    }
+
+    private function appendApiVersion(string $url): string {
+        return $url . "?api-version=".static::API_VERSION;
     }
 
     private function getAuthenticationHeaders(): array
