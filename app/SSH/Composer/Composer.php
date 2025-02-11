@@ -2,19 +2,20 @@
 
 namespace App\SSH\Composer;
 
+use App\Exceptions\SSHError;
 use App\Models\Site;
-use App\SSH\HasScripts;
 
 class Composer
 {
-    use HasScripts;
-
+    /**
+     * @throws SSHError
+     */
     public function installDependencies(Site $site): void
     {
-        $site->server->ssh()->exec(
-            $this->getScript('composer-install.sh', [
+        $site->server->ssh($site->user)->exec(
+            view('ssh.composer.composer-install', [
                 'path' => $site->path,
-                'php_version' => $site->php_version,
+                'phpVersion' => $site->php_version,
             ]),
             'composer-install',
             $site->id

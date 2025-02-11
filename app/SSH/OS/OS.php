@@ -2,10 +2,11 @@
 
 namespace App\SSH\OS;
 
+use App\Exceptions\SSHError;
 use App\Exceptions\SSHUploadFailed;
 use App\Models\Server;
 use App\Models\ServerLog;
-use App\SSH\HasScripts;
+use App\Models\Site;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -13,30 +14,40 @@ use Throwable;
 
 class OS
 {
-    use HasScripts;
-
     public function __construct(protected Server $server) {}
 
+    /**
+     * @throws SSHError
+     */
     public function installDependencies(): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('install-dependencies.sh'),
+            view('ssh.os.install-dependencies', [
+                'name' => $this->server->creator->name,
+                'email' => $this->server->creator->email,
+            ]),
             'install-dependencies'
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function upgrade(): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('upgrade.sh'),
+            view('ssh.os.upgrade'),
             'upgrade'
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function availableUpdates(): int
     {
         $result = $this->server->ssh()->exec(
-            $this->getScript('available-updates.sh'),
+            view('ssh.os.available-updates'),
             'check-available-updates'
         );
 
@@ -46,10 +57,13 @@ class OS
         return max($availableUpdates, 0);
     }
 
+    /**
+     * @throws SSHError
+     */
     public function createUser(string $user, string $password, string $key): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('create-user.sh', [
+            view('ssh.os.create-user', [
                 'user' => $user,
                 'password' => $password,
                 'key' => $key,
@@ -58,29 +72,68 @@ class OS
         );
     }
 
+    /**
+     * @throws SSHError
+     */
+    public function createIsolatedUser(string $user, string $password, int $site_id): void
+    {
+        $this->server->ssh()->exec(
+            view('ssh.os.create-isolated-user', [
+                'user' => $user,
+                'serverUser' => $this->server->getSshUser(),
+                'password' => $password,
+            ]),
+            'create-isolated-user',
+            $site_id
+        );
+    }
+
+    /**
+     * @throws SSHError
+     */
+    public function deleteIsolatedUser(string $user): void
+    {
+        $this->server->ssh()->exec(
+            view('ssh.os.delete-isolated-user', [
+                'user' => $user,
+                'serverUser' => $this->server->getSshUser(),
+            ]),
+            'delete-isolated-user'
+        );
+    }
+
+    /**
+     * @throws SSHError
+     */
     public function getPublicKey(string $user): string
     {
         return $this->server->ssh()->exec(
-            $this->getScript('read-file.sh', [
+            view('ssh.os.read-file', [
                 'path' => '/home/'.$user.'/.ssh/id_rsa.pub',
             ])
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function deploySSHKey(string $key): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('deploy-ssh-key.sh', [
+            view('ssh.os.deploy-ssh-key', [
                 'key' => $key,
             ]),
             'deploy-ssh-key'
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function deleteSSHKey(string $key): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('delete-ssh-key.sh', [
+            view('ssh.os.delete-ssh-key', [
                 'key' => $key,
                 'user' => $this->server->getSshUser(),
             ]),
@@ -88,29 +141,39 @@ class OS
         );
     }
 
-    public function generateSSHKey(string $name): void
+    /**
+     * @throws SSHError
+     */
+    public function generateSSHKey(string $name, ?Site $site = null): void
     {
-        $this->server->ssh()->exec(
-            $this->getScript('generate-ssh-key.sh', [
+        $site->server->ssh($site->user)->exec(
+            view('ssh.os.generate-ssh-key', [
                 'name' => $name,
             ]),
-            'generate-ssh-key'
+            'generate-ssh-key',
+            $site?->id
         );
     }
 
-    public function readSSHKey(string $name): string
+    /**
+     * @throws SSHError
+     */
+    public function readSSHKey(string $name, ?Site $site = null): string
     {
-        return $this->server->ssh()->exec(
-            $this->getScript('read-ssh-key.sh', [
+        return $site->server->ssh($site->user)->exec(
+            view('ssh.os.read-ssh-key', [
                 'name' => $name,
             ]),
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function reboot(): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('reboot.sh'),
+            view('ssh.os.reboot'),
         );
     }
 
@@ -135,25 +198,34 @@ class OS
         }
     }
 
+    /**
+     * @throws SSHError
+     */
     public function readFile(string $path): string
     {
         return $this->server->ssh()->exec(
-            $this->getScript('read-file.sh', [
+            view('ssh.os.read-file', [
                 'path' => $path,
             ])
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function tail(string $path, int $lines): string
     {
         return $this->server->ssh()->exec(
-            $this->getScript('tail.sh', [
+            view('ssh.os.tail', [
                 'path' => $path,
                 'lines' => $lines,
             ])
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function runScript(string $path, string $script, ?ServerLog $serverLog, ?string $user = null, ?array $variables = []): ServerLog
     {
         $ssh = $this->server->ssh($user);
@@ -162,9 +234,9 @@ class OS
         }
         $command = '';
         foreach ($variables as $key => $variable) {
-            $command .= "$key=$variable".PHP_EOL;
+            $command .= "$key=$variable\n";
         }
-        $command .= $this->getScript('run-script.sh', [
+        $command .= view('ssh.os.run-script', [
             'path' => $path,
             'script' => $script,
         ]);
@@ -175,16 +247,22 @@ class OS
         return $ssh->log;
     }
 
+    /**
+     * @throws SSHError
+     */
     public function download(string $url, string $path): string
     {
         return $this->server->ssh()->exec(
-            $this->getScript('download.sh', [
+            view('ssh.os.download', [
                 'url' => $url,
                 'path' => $path,
             ])
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function unzip(string $path): string
     {
         return $this->server->ssh()->exec(
@@ -192,18 +270,24 @@ class OS
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function cleanup(): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('cleanup.sh'),
+            view('ssh.os.cleanup'),
             'cleanup'
         );
     }
 
+    /**
+     * @throws SSHError
+     */
     public function resourceInfo(): array
     {
         $info = $this->server->ssh()->exec(
-            $this->getScript('resource-info.sh'),
+            view('ssh.os.resource-info'),
         );
 
         return [
@@ -215,6 +299,19 @@ class OS
             'disk_used' => str($info)->after('disk_used:')->before(PHP_EOL)->toString(),
             'disk_free' => str($info)->after('disk_free:')->before(PHP_EOL)->toString(),
         ];
+    }
+
+    /**
+     * @throws SSHError
+     */
+    public function deleteFile(string $path): void
+    {
+        $this->server->ssh()->exec(
+            view('ssh.os.delete-file', [
+                'path' => $path,
+            ]),
+            'delete-file'
+        );
     }
 
     private function deleteTempFile(string $name): void

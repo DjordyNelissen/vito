@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Enums\SiteStatus;
+use App\Enums\SslStatus;
 use App\Exceptions\FailedToDestroyGitHook;
 use App\Exceptions\SourceControlIsNotConnected;
 use App\Exceptions\SSHError;
 use App\SiteTypes\SiteType;
+use App\SSH\Services\PHP\PHP;
 use App\SSH\Services\Webserver\Webserver;
 use App\Traits\HasProjectThroughServer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -33,6 +36,8 @@ use Illuminate\Support\Str;
  * @property string $status
  * @property int $port
  * @property int $progress
+ * @property string $user
+ * @property bool $force_ssl
  * @property Server $server
  * @property ServerLog[] $logs
  * @property Deployment[] $deployments
@@ -43,6 +48,9 @@ use Illuminate\Support\Str;
  * @property ?Ssl $activeSsl
  * @property string $ssh_key_name
  * @property ?SourceControl $sourceControl
+ * @property Collection<LoadBalancerServer> $loadBalancerServers
+ *
+ * @TODO: Add nodejs_version column
  */
 class Site extends AbstractModel
 {
@@ -66,6 +74,8 @@ class Site extends AbstractModel
         'status',
         'port',
         'progress',
+        'user',
+        'force_ssl',
     ];
 
     protected $casts = [
@@ -75,6 +85,7 @@ class Site extends AbstractModel
         'progress' => 'integer',
         'aliases' => 'array',
         'source_control_id' => 'integer',
+        'force_ssl' => 'boolean',
     ];
 
     public static array $statusColors = [
@@ -193,11 +204,22 @@ class Site extends AbstractModel
         return null;
     }
 
+    /**
+     * @throws SSHError
+     */
     public function changePHPVersion($version): void
     {
         /** @var Webserver $handler */
         $handler = $this->server->webserver()->handler();
         $handler->changePHPVersion($this, $version);
+
+        if ($this->isIsolated()) {
+            /** @var PHP $php */
+            $php = $this->server->php()->handler();
+            $php->removeFpmPool($this->user, $this->php_version, $this->id);
+            $php->createFpmPool($this->user, $version, $this->id);
+        }
+
         $this->php_version = $version;
         $this->save();
     }
@@ -206,6 +228,8 @@ class Site extends AbstractModel
     {
         return $this->hasOne(Ssl::class)
             ->where('expires_at', '>=', now())
+            ->where('status', SslStatus::CREATED)
+            ->where('is_active', true)
             ->orderByDesc('id');
     }
 
@@ -295,11 +319,6 @@ class Site extends AbstractModel
         }
     }
 
-    public function hasSSL(): bool
-    {
-        return $this->ssls->isNotEmpty();
-    }
-
     public function environmentVariables(?Deployment $deployment = null): array
     {
         return [
@@ -311,5 +330,23 @@ class Site extends AbstractModel
             'PHP_VERSION' => $this->php_version,
             'PHP_PATH' => '/usr/bin/php'.$this->php_version,
         ];
+    }
+
+    public function isIsolated(): bool
+    {
+        return $this->user != $this->server->getSshUser();
+    }
+
+    public function webserver(): Webserver
+    {
+        /** @var Webserver $webserver */
+        $webserver = $this->server->webserver()->handler();
+
+        return $webserver;
+    }
+
+    public function loadBalancerServers(): HasMany
+    {
+        return $this->hasMany(LoadBalancerServer::class, 'load_balancer_id');
     }
 }

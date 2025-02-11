@@ -40,10 +40,24 @@ return [
         \App\Enums\PHP::V83,
         \App\Enums\PHP::V84,
     ],
+    'nodejs_versions' => [
+        \App\Enums\NodeJS::NONE,
+        \App\Enums\NodeJS::V4,
+        \App\Enums\NodeJS::V6,
+        \App\Enums\NodeJS::V8,
+        \App\Enums\NodeJS::V10,
+        \App\Enums\NodeJS::V12,
+        \App\Enums\NodeJS::V14,
+        \App\Enums\NodeJS::V16,
+        \App\Enums\NodeJS::V18,
+        \App\Enums\NodeJS::V20,
+        \App\Enums\NodeJS::V22,
+    ],
     'databases' => [
         \App\Enums\Database::NONE,
         \App\Enums\Database::MYSQL57,
         \App\Enums\Database::MYSQL80,
+        \App\Enums\Database::MYSQL84,
         \App\Enums\Database::MARIADB103,
         \App\Enums\Database::MARIADB104,
         \App\Enums\Database::MARIADB106,
@@ -59,6 +73,7 @@ return [
         \App\Enums\Database::NONE => 'none',
         \App\Enums\Database::MYSQL57 => 'mysql',
         \App\Enums\Database::MYSQL80 => 'mysql',
+        \App\Enums\Database::MYSQL84 => 'mysql',
         \App\Enums\Database::MARIADB103 => 'mariadb',
         \App\Enums\Database::MARIADB104 => 'mariadb',
         \App\Enums\Database::MARIADB106 => 'mariadb',
@@ -74,6 +89,7 @@ return [
         \App\Enums\Database::NONE => '',
         \App\Enums\Database::MYSQL57 => '5.7',
         \App\Enums\Database::MYSQL80 => '8.0',
+        \App\Enums\Database::MYSQL84 => '8.4',
         \App\Enums\Database::MARIADB103 => '10.3',
         \App\Enums\Database::MARIADB104 => '10.4',
         \App\Enums\Database::MARIADB106 => '10.6',
@@ -162,6 +178,7 @@ return [
         'postgresql' => 'database',
         'redis' => 'memory_database',
         'php' => 'php',
+        'nodejs' => 'nodejs',
         'ufw' => 'firewall',
         'supervisor' => 'process_manager',
         'vito-agent' => 'monitoring',
@@ -174,6 +191,7 @@ return [
         'postgresql' => \App\SSH\Services\Database\Postgresql::class,
         'redis' => \App\SSH\Services\Redis\Redis::class,
         'php' => \App\SSH\Services\PHP\PHP::class,
+        'nodejs' => \App\SSH\Services\NodeJS\NodeJS::class,
         'ufw' => \App\SSH\Services\Firewall\Ufw::class,
         'supervisor' => \App\SSH\Services\ProcessManager\Supervisor::class,
         'vito-agent' => \App\SSH\Services\Monitoring\VitoAgent\VitoAgent::class,
@@ -186,6 +204,7 @@ return [
         'mysql' => [
             '5.7',
             '8.0',
+            '8.4',
         ],
         'mariadb' => [
             '10.3',
@@ -203,6 +222,18 @@ return [
         ],
         'redis' => [
             'latest',
+        ],
+        'nodejs' => [
+            '4',
+            '6',
+            '8',
+            '10',
+            '12',
+            '14',
+            '16',
+            '18',
+            '20',
+            '22',
         ],
         'php' => [
             '5.6',
@@ -246,14 +277,17 @@ return [
             \App\Enums\OperatingSystem::UBUNTU20 => [
                 '5.7' => 'mysql',
                 '8.0' => 'mysql',
+                '8.4' => 'mysql',
             ],
             \App\Enums\OperatingSystem::UBUNTU22 => [
                 '5.7' => 'mysql',
                 '8.0' => 'mysql',
+                '8.4' => 'mysql',
             ],
             \App\Enums\OperatingSystem::UBUNTU24 => [
                 '5.7' => 'mysql',
                 '8.0' => 'mysql',
+                '8.4' => 'mysql',
             ],
         ],
         'mariadb' => [
@@ -397,6 +431,7 @@ return [
         \App\Enums\SiteType::LARAVEL,
         \App\Enums\SiteType::WORDPRESS,
         \App\Enums\SiteType::PHPMYADMIN,
+        \App\Enums\SiteType::LOAD_BALANCER,
     ],
     'site_types_class' => [
         \App\Enums\SiteType::PHP => \App\SiteTypes\PHPSite::class,
@@ -404,6 +439,7 @@ return [
         \App\Enums\SiteType::LARAVEL => \App\SiteTypes\Laravel::class,
         \App\Enums\SiteType::WORDPRESS => \App\SiteTypes\Wordpress::class,
         \App\Enums\SiteType::PHPMYADMIN => \App\SiteTypes\PHPMyAdmin::class,
+        \App\Enums\SiteType::LOAD_BALANCER => \App\SiteTypes\LoadBalancer::class,
     ],
 
     /*
@@ -491,15 +527,12 @@ return [
         \App\Enums\StorageProvider::FTP,
         \App\Enums\StorageProvider::LOCAL,
         \App\Enums\StorageProvider::S3,
-        \App\Enums\StorageProvider::WASABI,
     ],
     'storage_providers_class' => [
         \App\Enums\StorageProvider::DROPBOX => \App\StorageProviders\Dropbox::class,
         \App\Enums\StorageProvider::FTP => \App\StorageProviders\FTP::class,
         \App\Enums\StorageProvider::LOCAL => \App\StorageProviders\Local::class,
         \App\Enums\StorageProvider::S3 => \App\StorageProviders\S3::class,
-        \App\Enums\StorageProvider::WASABI => \App\StorageProviders\Wasabi::class,
-
     ],
 
     'ssl_types' => [

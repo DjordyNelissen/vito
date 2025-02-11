@@ -4,16 +4,18 @@ namespace App\Actions\Site;
 
 use App\Enums\DeploymentStatus;
 use App\Exceptions\DeploymentScriptIsEmptyException;
-use App\Exceptions\SourceControlIsNotConnected;
+use App\Exceptions\SSHError;
+use App\Facades\Notifier;
 use App\Models\Deployment;
 use App\Models\ServerLog;
 use App\Models\Site;
+use App\Notifications\DeploymentCompleted;
 
 class Deploy
 {
     /**
-     * @throws SourceControlIsNotConnected
      * @throws DeploymentScriptIsEmptyException
+     * @throws SSHError
      */
     public function run(Site $site): Deployment
     {
@@ -48,13 +50,16 @@ class Deploy
                 path: $site->path,
                 script: $site->deploymentScript->content,
                 serverLog: $log,
-                variables: $site->environmentVariables($deployment)
+                user: $site->user,
+                variables: $site->environmentVariables($deployment),
             );
             $deployment->status = DeploymentStatus::FINISHED;
             $deployment->save();
-        })->catch(function () use ($deployment) {
+            Notifier::send($site, new DeploymentCompleted($deployment, $site));
+        })->catch(function () use ($deployment, $site) {
             $deployment->status = DeploymentStatus::FAILED;
             $deployment->save();
+            Notifier::send($site, new DeploymentCompleted($deployment, $site));
         })->onConnection('ssh');
 
         return $deployment;

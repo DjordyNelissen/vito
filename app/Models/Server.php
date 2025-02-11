@@ -121,8 +121,12 @@ class Server extends AbstractModel
             DB::beginTransaction();
             try {
                 $server->sites()->each(function (Site $site) {
-                    $site->delete();
+                    $site->queues()->delete();
+                    $site->ssls()->delete();
+                    $site->deployments()->delete();
+                    $site->deploymentScript()->delete();
                 });
+                $server->sites()->delete();
                 $server->logs()->each(function (ServerLog $log) {
                     $log->delete();
                 });
@@ -263,6 +267,15 @@ class Server extends AbstractModel
         return config('core.ssh_user');
     }
 
+    public function getSshUsers(): array
+    {
+        $users = ['root', $this->getSshUser()];
+        $isolatedSites = $this->sites()->pluck('user')->toArray();
+        $users = array_merge($users, $isolatedSites);
+
+        return array_unique($users);
+    }
+
     public function service($type, $version = null): ?Service
     {
         /* @var Service $service */
@@ -313,6 +326,17 @@ class Server extends AbstractModel
         $phps = $this->services()->where('type', 'php')->get(['version']);
         foreach ($phps as $php) {
             $versions[] = $php->version;
+        }
+
+        return $versions;
+    }
+
+    public function installedNodejsVersions(): array
+    {
+        $versions = [];
+        $nodes = $this->services()->where('type', 'nodejs')->get(['version']);
+        foreach ($nodes as $node) {
+            $versions[] = $node->version;
         }
 
         return $versions;
@@ -375,6 +399,15 @@ class Server extends AbstractModel
         }
 
         return $this->service('php', $version);
+    }
+
+    public function nodejs(?string $version = null): ?Service
+    {
+        if (! $version) {
+            return $this->defaultService('nodejs');
+        }
+
+        return $this->service('nodejs', $version);
     }
 
     public function memoryDatabase(?string $version = null): ?Service

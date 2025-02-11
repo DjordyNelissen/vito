@@ -2,18 +2,19 @@
 
 namespace App\SSH\Storage;
 
-use App\SSH\HasScripts;
+use App\Exceptions\SSHError;
 
 class FTP extends AbstractStorage
 {
-    use HasScripts;
-
+    /**
+     * @throws SSHError
+     */
     public function upload(string $src, string $dest): array
     {
         $this->server->ssh()->exec(
-            $this->getScript('ftp/upload.sh', [
+            view('ssh.storage.ftp.upload', [
                 'src' => $src,
-                'dest' => $this->storageProvider->credentials['path'].'/'.$dest,
+                'dest' => $dest,
                 'host' => $this->storageProvider->credentials['host'],
                 'port' => $this->storageProvider->credentials['port'],
                 'username' => $this->storageProvider->credentials['username'],
@@ -29,11 +30,14 @@ class FTP extends AbstractStorage
         ];
     }
 
+    /**
+     * @throws SSHError
+     */
     public function download(string $src, string $dest): void
     {
         $this->server->ssh()->exec(
-            $this->getScript('ftp/download.sh', [
-                'src' => $this->storageProvider->credentials['path'].'/'.$src,
+            view('ssh.storage.ftp.download', [
+                'src' => $src,
                 'dest' => $dest,
                 'host' => $this->storageProvider->credentials['host'],
                 'port' => $this->storageProvider->credentials['port'],
@@ -47,10 +51,21 @@ class FTP extends AbstractStorage
     }
 
     /**
-     * @TODO Implement delete method
+     * @throws SSHError
      */
-    public function delete(string $path): void
+    public function delete(string $src): void
     {
-        //
+        $this->server->ssh()->exec(
+            view('ssh.storage.ftp.delete-file', [
+                'src' => $src,
+                'host' => $this->storageProvider->credentials['host'],
+                'port' => $this->storageProvider->credentials['port'],
+                'username' => $this->storageProvider->credentials['username'],
+                'password' => $this->storageProvider->credentials['password'],
+                'ssl' => $this->storageProvider->credentials['ssl'],
+                'passive' => $this->storageProvider->credentials['passive'],
+            ]),
+            'delete-from-ftp'
+        );
     }
 }

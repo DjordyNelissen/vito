@@ -6,6 +6,7 @@ use App\Enums\QueueStatus;
 use App\Models\Queue;
 use App\Models\Server;
 use App\Models\Site;
+use App\SSH\Services\ProcessManager\ProcessManager;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -29,7 +30,9 @@ class CreateQueue
         $queue->save();
 
         dispatch(function () use ($queue) {
-            $queue->server->processManager()->handler()->create(
+            /** @var ProcessManager $processManager */
+            $processManager = $queue->server->processManager()->handler();
+            $processManager->create(
                 $queue->id,
                 $queue->command,
                 $queue->user,
@@ -46,7 +49,7 @@ class CreateQueue
         })->onConnection('ssh');
     }
 
-    public static function rules(Server $server): array
+    public static function rules(Site $site): array
     {
         return [
             'command' => [
@@ -56,7 +59,7 @@ class CreateQueue
                 'required',
                 Rule::in([
                     'root',
-                    $server->ssh_user,
+                    $site->user,
                 ]),
             ],
             'numprocs' => [
